@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "url": "https://remotive.com/api/remote-jobs?category=software-dev&limit=20&search=data+engineer",
+        "url": "https://api.apify.com/v2/datasets/oX5XjCPXie4ca24c5/items?token=apify_api_O6RsiWIMKSDObUWio40kosEEICRg8w3zgUW5",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -36,7 +36,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get the jobs array from Remotive response\nconst jobs = $input.first().json.jobs;\n\n// Loop over each job and return clean items\nreturn jobs.map(job => ({\n  json: {\n    id:          job.id,\n    title:       job.title,\n    company:     job.company_name,\n    location:    job.candidate_required_location,\n    job_type:    job.job_type,\n    salary:      job.salary || 'Not specified',\n    tags:        job.tags.join(', '),\n    url:         job.url,\n    posted:      job.publication_date,\n\n    // Strip HTML tags from description\n    description: job.description\n      .replace(/<[^>]*>/g, ' ')\n      .replace(/\\s+/g, ' ')\n      .trim()\n      .slice(0, 800)\n  }\n}));"
+        "jsCode": "const jobs = $input.all().map(item => item.json);\n\nreturn jobs.map(job => ({\n  json: {\n    id:          job.id || String(Math.random()),\n    title:       job.title || '',\n    company:     job.companyName || '',\n    location:    job.location || '',\n    salary:      job.salary || 'Not specified',\n    url:         job.jobUrl || '',\n    description: (job.description || '')\n      .replace(/<[^>]*>/g, ' ')\n      .replace(/\\s+/g, ' ')\n      .trim()\n      .slice(0, 800)\n  }\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -446,7 +446,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "55f4e3b9-03fb-41b5-a447-3a8557daa72f",
+  "versionId": "4de0823d-3c00-407f-8093-7490f02fb005",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "6fb0f60ddcf569813060d39c4ac026ba080209a6e42cb7243331fe23eae83bcc"
