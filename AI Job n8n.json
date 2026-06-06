@@ -1,0 +1,457 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "8d313e93-820a-49e7-8384-760ecfcc9a33",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://remotive.com/api/remote-jobs?category=software-dev&limit=20&search=data+engineer",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        512,
+        -112
+      ],
+      "id": "9577f179-e66d-4257-9cd6-8fb9c8c268ca",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the jobs array from Remotive response\nconst jobs = $input.first().json.jobs;\n\n// Loop over each job and return clean items\nreturn jobs.map(job => ({\n  json: {\n    id:          job.id,\n    title:       job.title,\n    company:     job.company_name,\n    location:    job.candidate_required_location,\n    job_type:    job.job_type,\n    salary:      job.salary || 'Not specified',\n    tags:        job.tags.join(', '),\n    url:         job.url,\n    posted:      job.publication_date,\n\n    // Strip HTML tags from description\n    description: job.description\n      .replace(/<[^>]*>/g, ' ')\n      .replace(/\\s+/g, ' ')\n      .trim()\n      .slice(0, 800)\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -48
+      ],
+      "id": "baa6814e-6748-4b61-9fd2-160391f29a66",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c311c497-cea6-4c85-8fc0-9169b8a5f3fd",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "Engineer",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "10481ad4-a555-4f88-b8ad-32c7aa009a3a",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "Data",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "873d0c03-7f3b-40f5-83a1-594e04259c86",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "Machine Learning",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "52a03d1e-e6f4-4d5a-a28e-da015e244eb7",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "Analyst",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "563033c4-05ef-41d5-a2e1-8cabdd221db1",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "Scientist",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "9b2d4f72-dc40-406e-8398-151a7344a1bd",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "Engineering",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1024,
+        -16
+      ],
+      "id": "7ccf84c8-8acd-42cf-8c36-a65d38199663",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "=POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a job search assistant. Return ONLY valid JSON with: summary (2 sentences), skills (array of top 5), score (0-100), reason (1 sentence), years_experience (number, minimum years required, use 0 if not mentioned or if entry level). No markdown, no extra text.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Title: {{ $json.title }}\\nCompany: {{ $json.company }}\\nDescription: {{ $json.description }}\"\n    }\n  ],\n  \"temperature\": 0.3\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1840,
+        -448
+      ],
+      "id": "a7a57841-8398-4963-a529-2b032faebcca",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nfor (const item of $input.all()) {\n  const content = item.json.choices[0].message.content;\n\n  let ai = { summary: '', skills: [], score: 0, reason: '', years_experience: 0 };\n  try { ai = JSON.parse(content); } \n  catch(e) { ai.summary = content; }\n\n  results.push({\n    json: {\n      title:              $('If').item.json.title,\n      company:            $('If').item.json.company,\n      location:           $('If').item.json.location,\n      salary:             $('If').item.json.salary,\n      url:                $('If').item.json.url,\n      summary:            ai.summary            || '',\n      skills:             (ai.skills            || []).join(', '),\n      score:              ai.score              || 0,\n      reason:             ai.reason             || '',\n      years_experience:   ai.years_experience   || 0\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        -448
+      ],
+      "id": "eaa9bdd7-3ca8-4d45-9f23-ddbc24141f8e",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1472,
+        -112
+      ],
+      "id": "8c2e0019-4c4e-4232-bc2d-d7a8be133d88",
+      "name": "Loop Over Items",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "chatId": "6115415462",
+        "text": "=🧑‍💻 *{{ $json.title }}* at *{{ $json.company }}* 📍 {{ $json.location }} 💰 {{ $json.salary }} ⭐ CV Match: {{ $json.score }}/100 📝 {{ $json.summary }} 🔧 Skills: {{ $json.skills }} 💡 {{ $json.reason }} 🔗 {{ $json.url }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2928,
+        -288
+      ],
+      "id": "3b180fbc-be07-4325-a115-f47e49ca18e1",
+      "name": "Send a text message",
+      "webhookId": "31e59dab-2c28-4202-b1c2-595933b43b7c",
+      "credentials": {
+        "telegramApi": {
+          "id": "HVG4Ht5cZgmvolPR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3056,
+        240
+      ],
+      "id": "3ab0bb10-99e3-42ad-b6f0-8ccd7a8ed9bf",
+      "name": "Wait",
+      "webhookId": "1b1164f9-7815-4b9d-adf4-d57fb3423fdc"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst seen = new Set();\n\nreturn items.filter(item => {\n  const id = item.json.id;\n  if (seen.has(id)) return false;\n  seen.add(id);\n  return true;\n}).map(item => ({ json: item.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        -144
+      ],
+      "id": "c2573466-6ed6-4d31-8cc5-e6bc667ef0f4",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dfb2b3ad-1dde-437e-886a-c7d522507cf4",
+              "leftValue": "={{ $json.years_experience }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2496,
+        -448
+      ],
+      "id": "22ab4a58-067b-4ffb-a273-ff306a7b6adc",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "chatId": "6115415462",
+        "text": "✅ Daily Job Search Complete! ⏰ Next update: tomorrow at 8AM Powered by n8n + Groq AI",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1824,
+        -656
+      ],
+      "id": "6a5a1306-f83a-43b0-a94f-1715b55e3a26",
+      "name": "Send a text message2",
+      "webhookId": "f30a01f2-2754-4e3c-a4d5-646351a31c70",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "HVG4Ht5cZgmvolPR",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message2": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "55f4e3b9-03fb-41b5-a447-3a8557daa72f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6fb0f60ddcf569813060d39c4ac026ba080209a6e42cb7243331fe23eae83bcc"
+  },
+  "nodeGroups": [],
+  "id": "XTa4PlmxbNr8b9tj",
+  "tags": []
+}
